@@ -7,18 +7,26 @@ using System.Threading.Tasks;
 using Umbraco.Core;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.EntityBase;
 
 namespace Jumoo.uSync.Core.Mappers
 {
     class ContentIdMapper : IContentMapper
     {
-        private string _exportRegex; 
+        private string _exportRegex;
+        private UmbracoObjectTypes baseObjectType;
+
         public ContentIdMapper(string regex)
+            : this(regex, UmbracoObjectTypes.Document) { }
+
+        public ContentIdMapper(string regex, UmbracoObjectTypes objectType)
         {
             if (!regex.IsNullOrWhiteSpace())
                 _exportRegex = regex;
             else
                 _exportRegex = @"\d{4,9}";
+
+            this.baseObjectType = objectType;
         }
 
         public virtual string GetExportValue(int dataTypeDefinitionId, string value)
@@ -80,19 +88,19 @@ namespace Jumoo.uSync.Core.Mappers
 
         internal int GetIdFromGuid(Guid guid)
         {
-            var item = ApplicationContext.Current.Services.EntityService.GetByKey(guid);
-            if (item != null)
-                return item.Id;
+            var attempt = ApplicationContext.Current.Services.EntityService.GetIdForKey(guid, this.baseObjectType);
+            if (attempt.Success)
+                return attempt.Result;
 
             return -1;
         }
 
         internal Guid? GetGuidFromId(int id)
         {
-            var item = ApplicationContext.Current.Services.EntityService.Get(id);
-            if (item != null)
-                return item.Key;
-
+            var attempt = ApplicationContext.Current.Services.EntityService.uSyncGetKeyForId(id);
+            if (attempt.Success)
+                return attempt.Result;
+          
             return null;
         }
 

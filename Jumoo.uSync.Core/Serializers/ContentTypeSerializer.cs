@@ -29,10 +29,10 @@ namespace Jumoo.uSync.Core.Serializers
         }
 
         public ContentTypeSerializer() :
-            base(Constants.Packaging.DocumentTypeNodeName)
+            base(Constants.Packaging.DocumentTypeNodeName, UmbracoObjectTypes.DocumentType)
         { }
 
-        public ContentTypeSerializer(string itemType) : base(itemType)
+        public ContentTypeSerializer(string itemType) : base(itemType, UmbracoObjectTypes.DocumentType)
         {
         }
 
@@ -251,6 +251,21 @@ namespace Jumoo.uSync.Core.Serializers
                         LogHelper.Warn<ContentTypeSerializer>("Unable to find type for composition: " + compAlias);
                 }
             }
+
+            /*
+            if (item.ParentId != -1 && compositions.Count == 0)
+            {
+                // it might be that the item was created Umbraco 7.13 - 7.13.2 as a collection and it doesn't have it's 
+                // parent - we can fix that here (but should we?)
+                var parent = _contentTypeService.GetContentType(item.ParentId);
+                if (parent != null)
+                {
+                    // not a folder :) 
+                    compositions.Add(parent);
+                }
+            }
+            */
+
             LogHelper.Debug<ContentTypeSerializer>("Setting {0} compositions for element", () => item.ContentTypeComposition.Count());
             item.ContentTypeComposition = compositions;
 
@@ -333,12 +348,21 @@ namespace Jumoo.uSync.Core.Serializers
 
             // add content type/composistions
             var master = item.ContentTypeComposition.FirstOrDefault(x => x.Id == item.ParentId);
+
+            if (item.Level != 1 && master == null)
+            {
+                // it is possible that a doctype collection has done something here where
+                // it does have a parent but its not a composition 
+                master = _contentTypeService.GetContentType(item.ParentId);
+            }
+
             if (master != null)
                 info.Add(new XElement("Master", master.Alias,
                             new XAttribute("Key", master.Key)));
 
+
             if (item.Level != 1 && master == null)
-            {
+            { 
                 // we must be in a folder. 
                 var folders = _contentTypeService.GetContentTypeContainers(item)
                     .OrderBy(x => x.Level)

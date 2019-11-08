@@ -7,7 +7,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Umbraco.Core;
+using Umbraco.Core.Models;
+using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Services;
+using Jumoo.uSync.Core;
 
 namespace Jumoo.uSync.ContentMappers
 {
@@ -29,11 +32,9 @@ namespace Jumoo.uSync.ContentMappers
                 {
                     if (link.id != null)
                     {
-                        var key = _entityService.Get((int)link.id);
-                        if (key != null)
-                        {
-                            link.id = key.Key;
-                        }
+                        var attempt = _entityService.uSyncGetKeyForId((int)link.Id);
+                        if (attempt.Success)
+                            link.id = attempt.Result;                        
                     }
                 }
             }
@@ -53,10 +54,9 @@ namespace Jumoo.uSync.ContentMappers
                         Guid key;
                         if (Guid.TryParse(link.id.ToString(), out key))
                         {
-                            var id = _entityService.GetByKey(key);
-                            if (id != null)
-                            {
-                                link.id = id.Id;
+                            var attempt = GetItemIdFromGuid(key);
+                            if (attempt.Success) {
+                                link.id = attempt.Result;
                             }
                         }
                     }
@@ -64,7 +64,16 @@ namespace Jumoo.uSync.ContentMappers
             }
 
             return JsonConvert.SerializeObject(links, Formatting.Indented);
+        }
 
+        private Attempt<int> GetItemIdFromGuid(Guid key)
+        {
+            var attempt = _entityService.GetIdForKey(key, UmbracoObjectTypes.Document);
+            if (attempt.Success == false)
+                attempt = _entityService.GetIdForKey(key, UmbracoObjectTypes.Media);
+
+
+            return attempt;
         }
     }
 }

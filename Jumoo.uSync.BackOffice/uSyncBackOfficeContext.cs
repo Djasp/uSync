@@ -167,6 +167,7 @@
 
         public IEnumerable<uSyncAction> Import(string groupName, string folder, bool force)
         {
+            var sw = Stopwatch.StartNew();
 
             // pause all saving etc. while we do an import
             uSyncEvents.Paused = true;
@@ -198,7 +199,15 @@
                 new uSyncBulkEventArg() { action = ChangeType.Import });
 
             uSyncEvents.Paused = false;
+
+            sw.Stop();
+            LogHelper.Info<uSyncApplicationEventHandler>("uSync Import Complete {0}ms [{1} Items {2} Changes {3} Failures]",
+                () => sw.ElapsedMilliseconds,
+                () => actions.Count(),
+                () => actions.Count(x => x.Change > ChangeType.NoChange),
+                () => actions.Count(x => x.Change > ChangeType.Fail));
             return actions;
+
         }
 
         public IEnumerable<uSyncAction> Import(IEnumerable<ISyncHandler> syncHandlers, string folder, bool checkConfig, bool force, string groupName = "")
@@ -296,6 +305,8 @@
 
             uSyncEvents.fireBulkActionComplete(
                 new uSyncBulkEventArg() { action = ChangeType.NoChange });
+
+            LogHelper.Info<uSyncApplicationEventHandler>("Report Complete");
 
             return actions;
 

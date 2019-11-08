@@ -27,18 +27,34 @@ namespace Jumoo.uSync.Core.Helpers
 
         public string GetPathFromId(int id, UmbracoObjectTypes type)
         {
-            var item = _entityService.Get(id, type);
-            if (item != null && !item.Trashed)
-                return GetPath(item);
+            if (_entityService.Exists(id))
+            {
+                var items = _entityService.GetAll(type, id);
+                if (items != null && items.Any())
+                {
+                    var item = items.FirstOrDefault();
+                    if (item != null && !item.Trashed)
+                    {
+                        return GetPath(item);
+                    }
+                }
+            }
 
             return string.Empty;
         }
 
-        public string GetPathFromKey(Guid key)
+        public string GetPathFromKey(Guid key, UmbracoObjectTypes objectType)
         {
-            var item = _entityService.GetByKey(key);
-            if (item != null && !item.Trashed)
-                return GetPath(item);
+            var items = _entityService.GetAll(objectType, new[] { key });
+            if (items != null && items.Any())
+            {
+                var item = items.FirstOrDefault();
+                if (item != null && !item.Trashed)
+                {
+                    return GetPath(item);
+                }
+            }
+               
 
             return string.Empty;
         }
@@ -48,7 +64,7 @@ namespace Jumoo.uSync.Core.Helpers
             var path = item.Name;
             if (item.ParentId != -1)
             {
-                var parent = _entityService.Get(item.ParentId);
+                var parent = _entityService.GetParent(item.Id);
                 if (parent != null)
                 {
                     path = GetPath(parent) + @"\" + path;

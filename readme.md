@@ -24,6 +24,15 @@ It will save:
 
 You can use **uSync.ContentEdition** to manage content and media if you also want to write them to disk.
 
+## Compatibility
+
+| Umbraco Version | uSync Version |
+| --------------- |:-------------:|
+| >= 8.x.x.       | [uSync8](https://github.com/KevinJump/uSync8) |
+| >= 7.6.x        | 4.x.x         |
+| <= 7.5.x        | 3.x.x         |
+
+
 ## The basics workings of uSync
 
 The main elements of uSync are the Serializers and Handlers:

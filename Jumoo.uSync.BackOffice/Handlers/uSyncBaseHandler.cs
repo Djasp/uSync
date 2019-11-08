@@ -15,8 +15,10 @@
     using Umbraco.Core.Models;
     using System.Xml.Linq;
     using Core.Extensions;
+    using System.Diagnostics;
 
     abstract public class uSyncBaseHandler<T>
+        // where T : class
     {
         bool _useShortName; 
 
@@ -35,9 +37,14 @@
 
         public IEnumerable<uSyncAction> ImportAll(string folder, bool force)
         {
-            LogHelper.Info<Logging>("Running Import: {0}", () => Path.GetFileName(folder));
-            List<uSyncAction> actions = new List<uSyncAction>();
+            var typeName = typeof(T).Name;
+            var sw = Stopwatch.StartNew();
+            LogHelper.Info<Logging>("<< Import: [{0}] {1}",
+                () => typeName, 
+                () => Path.GetFileName(folder));
 
+            List<uSyncAction> actions = new List<uSyncAction>();
+            
             Dictionary<string, T> updates = new Dictionary<string, T>();
 
             // for a non-force sync, we use the actions to process deletes.
@@ -59,10 +66,13 @@
                 }
             }
 
-            LogHelper.Info<Logging>("Handler Import Complete: {0} Items {1} changes {2} failures",
+            sw.Stop();
+            LogHelper.Info<Logging>(">> Import [{0}] Complete: {1} Items {2} changes {3} failures ({4}ms)",
+                () => typeName,
                 () => actions.Count(),
                 () => actions.Count(x => x.Change > ChangeType.NoChange),
-                () => actions.Count(x => x.Change > ChangeType.Fail));
+                () => actions.Count(x => x.Change > ChangeType.Fail),
+                () => sw.ElapsedMilliseconds);
 
             return actions; 
         }
@@ -77,13 +87,26 @@
             {
                 foreach (string file in Directory.GetFiles(mappedfolder, "*.config"))
                 {
-                    var attempt = Import(file, force);
-                    if (attempt.Success && attempt.Item != null)
+                    try
                     {
-                        updates.Add(file, attempt.Item);
-                    }
+                        LogHelper.Debug<Logging>(">>>> Importing : {0}", 
+                            () => Path.GetFileName(Path.GetDirectoryName(file)) + "\\" + Path.GetFileName(file));
+                        var attempt = Import(file, force);
+                        if (attempt.Success && attempt.Item != null)
+                        {
+                            updates.Add(file, attempt.Item);
+                        }
+                        LogHelper.Debug<Logging>("<<<< Imported : {0} [{1} {2}]", () => 
+                            Path.GetFileName(Path.GetDirectoryName(file)) + "\\" + Path.GetFileName(file),
+                            ()=> attempt.Change,
+                            ()=> attempt.Success);
 
-                    actions.Add(uSyncActionHelper<T>.SetAction(attempt, file, RequiresPostProcessing));
+                        actions.Add(uSyncActionHelper<T>.SetAction(attempt, file, RequiresPostProcessing));
+                    }
+                    catch(Exception ex)
+                    {
+                        throw new Exception("Error Importing: " + Path.GetFileName(file) + " see log for more details", ex);
+                    }
                 }
 
                 foreach (var children in Directory.GetDirectories(mappedfolder))
@@ -143,11 +166,12 @@
             {
                 if (item.ParentId > 0)
                 {
-                    var parent = ApplicationContext.Current.Services.EntityService.Get(item.ParentId);
+                    var parent = ApplicationContext.Current.Services.EntityService.GetParent(item.Id);
                     if (parent != null)
                     {
                         path = GetEntityPath(parent);
                     }
+
                 }
 
                 path = Path.Combine(path, GetItemFileName(item));
@@ -185,7 +209,14 @@
             {
                 foreach (string file in Directory.GetFiles(mappedfolder, "*.config"))
                 {
-                    actions.Add(ReportItem(file));
+                    try
+                    {
+                        actions.Add(ReportItem(file));
+                    }
+                    catch(Exception ex)
+                    {
+                        throw new Exception("Error reporting " + Path.GetFileName(file) + " see log for more details", ex);
+                    }
 
                 }
 
