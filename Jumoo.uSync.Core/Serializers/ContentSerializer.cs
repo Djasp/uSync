@@ -1,23 +1,17 @@
-﻿using System;
+﻿using Jumoo.uSync.Core.Extensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
-using Umbraco.Core.Models;
-
-using Jumoo.uSync.Core.Interfaces;
-using Jumoo.uSync.Core.Extensions;
 using Umbraco.Core;
-using Jumoo.uSync.Core.Helpers;
 using Umbraco.Core.Logging;
-using System.Globalization;
+using Umbraco.Core.Models;
 
 namespace Jumoo.uSync.Core.Serializers
 {
     public class ContentSerializer : ContentBaseSerializer<IContent>
     {
-        private bool _blueprintEnabled; 
+        private bool _blueprintEnabled;
 
         public override string SerializerType
         {
@@ -38,7 +32,7 @@ namespace Jumoo.uSync.Core.Serializers
             if (nodeGuid == null)
                 return SyncAttempt<IContent>.Fail(node.NameFromNode(), ChangeType.Import, "No Guid in XML");
 
-            Guid guid = new Guid(nodeGuid.Value);
+            var guid = new Guid(nodeGuid.Value);
 
             var name = node.Attribute("nodeName").Value;
             var type = node.Attribute("nodeTypeAlias").Value;
@@ -191,7 +185,8 @@ namespace Jumoo.uSync.Core.Serializers
             node.Add(new XAttribute("sortOrder", item.SortOrder));
             node.Add(new XAttribute("published", item.Published));
 
-            if (_blueprintEnabled) { 
+            if (_blueprintEnabled)
+            {
                 LogHelper.Debug<ContentSerializer>("Is Blueprint?");
                 node.Add(new XAttribute("isBlueprint", IsBlueprint(item)));
             }
@@ -239,9 +234,11 @@ namespace Jumoo.uSync.Core.Serializers
             if (item == null)
                 return true;
 
-            DateTime updateTime = node.Attribute("updated").ValueOrDefault(DateTime.Now).ToUniversalTime();
+            var updateTime = node.Attribute("updated").ValueOrDefault(DateTime.Now).ToUniversalTime();
 
-            // LogHelper.Debug<ContentSerializer>("IsUpdate: File {0}, DB {1} {2}", () => updateTime, () => item.UpdateDate.ToUniversalTime(), ()=>item.UpdateDate.Kind.ToString());
+            LogHelper.Debug<ContentSerializer>("IsUpdate: File {0}, DB {1} {2}", () => updateTime, () => item.UpdateDate.ToUniversalTime(), () => item.UpdateDate.Kind.ToString());
+            LogHelper.Debug<ContentSerializer>("IsUpdated: {0}", () => (updateTime - item.UpdateDate.ToUniversalTime()).TotalSeconds > 1);
+
             if ((updateTime - item.UpdateDate.ToUniversalTime()).TotalSeconds > 1)
             {
                 return true;
@@ -277,6 +274,9 @@ namespace Jumoo.uSync.Core.Serializers
 
             var itemHash = attempt.Item.GetSyncHash();
 
+            LogHelper.Debug<ContentSerializer>("IsDiffrent: File {0}, DB {1}", () => nodeHash, () => itemHash);
+            LogHelper.Debug<ContentSerializer>("IsDiffrent: {0}", () => !nodeHash.Equals(itemHash));
+
             return (!nodeHash.Equals(itemHash));
         }
 
@@ -302,7 +302,7 @@ namespace Jumoo.uSync.Core.Serializers
         {
             base.DeserializeMappedIds(item, node);
 
-            int sortOrder = node.Attribute("sortOrder").ValueOrDefault(-1);
+            var sortOrder = node.Attribute("sortOrder").ValueOrDefault(-1);
             if (sortOrder >= 0)
                 item.SortOrder = sortOrder;
 
